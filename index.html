@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="registration-container" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center">Registration Form</h1>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="name">Name</label>
+            <input id="name" type="text" class="w-full p-2 border rounded" required>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="enrollment">Enrollment Number</label>
+            <input id="enrollment" type="text" class="w-full p-2 border rounded" required>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="branch">Branch</label>
+            <select id="branch" class="w-full p-2 border rounded" required>
+                <option value="" disabled selected>Select Branch</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Mechanical">Mechanical</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Civil">Civil</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="semester">Semester</label>
+            <select id="semester" class="w-full p-2 border rounded" required>
+                <option value="" disabled selected>Select Semester</option>
+                <option value="1">1st</option>
+                <option value="2">2nd</option>
+                <option value="3">3rd</option>
+                <option value="4">4th</option>
+                <option value="5">5th</option>
+                <option value="6">6th</option>
+                <option value="7">7th</option>
+                <option value="8">8th</option>
+            </select>
+        </div>
+        <button id="submit-registration" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Submit</button>
+        <p id="error-message" class="mt-4 text-red-500 hidden">Please fill out all fields.</p>
+    </div>
+    <div id="enter-quiz-container" class="hidden bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-6 text-center">Ready to Start?</h2>
+        <p class="text-center mb-4">Click the button below to begin the quiz.</p>
+        <button id="enter-quiz-btn" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">Enter the Quiz</button>
+    </div>
+    <div id="quiz-container" class="hidden bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-center">General Knowledge Quiz</h1>
+            <div id="timer" class="text-lg font-semibold text-red-500">01:00</div>
+        </div>
+        <div id="question-container"></div>
+        <div id="options-container" class="mt-4"></div>
+        <div id="feedback" class="mt-4 text-red-500 hidden"></div>
+        <button id="next-btn" class="mt-6 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 hidden">Next</button>
+        <button id="submit-btn" class="mt-6 w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 hidden">Submit</button>
+    </div>
+    <div id="result-container" class="hidden bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h2 id="result-title" class="text-2xl font-bold mb-4 text-center"></h2>
+        <p id="result-message" class="text-center mb-4"></p>
+        <button id="retry-btn" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 mb-4">Try Again</button>
+        <button id="download-btn" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 hidden">Download Certificate</button>
+    </div>
+    <script>
+        const questions = [
+            {
+                question: "What is the capital of France?",
+                options: ["Paris", "London", "Berlin", "Madrid"],
+                correct: "Paris"
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                options: ["Jupiter", "Mars", "Venus", "Mercury"],
+                correct: "Mars"
+            },
+            {
+                question: "What is 2 + 2?",
+                options: ["3", "4", "5", "6"],
+                correct: "4"
+            },
+            {
+                question: "Which element has the chemical symbol 'O'?",
+                options: ["Gold", "Oxygen", "Silver", "Iron"],
+                correct: "Oxygen"
+            },
+            {
+                question: "Who wrote 'Romeo and Juliet'?",
+                options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+                correct: "William Shakespeare"
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let userAnswers = [];
+        let timeLeft = 60; // 1 minute in seconds
+        let timerInterval = null;
+        let userDetails = {
+            name: '',
+            enrollment: '',
+            branch: '',
+            semester: ''
+        };
+
+        const registrationContainer = document.getElementById('registration-container');
+        const enterQuizContainer = document.getElementById('enter-quiz-container');
+        const quizContainer = document.getElementById('quiz-container');
+        const resultContainer = document.getElementById('result-container');
+        const nameInput = document.getElementById('name');
+        const enrollmentInput = document.getElementById('enrollment');
+        const branchInput = document.getElementById('branch');
+        const semesterInput = document.getElementById('semester');
+        const submitRegistration = document.getElementById('submit-registration');
+        const enterQuizBtn = document.getElementById('enter-quiz-btn');
+        const errorMessage = document.getElementById('error-message');
+        const questionContainer = document.getElementById('question-container');
+        const optionsContainer = document.getElementById('options-container');
+        const feedback = document.getElementById('feedback');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const resultTitle = document.getElementById('result-title');
+        const resultMessage = document.getElementById('result-message');
+        const retryBtn = document.getElementById('retry-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const timerDisplay = document.getElementById('timer');
+        const { jsPDF } = window.jspdf;
+
+        submitRegistration.onclick = () => {
+            if (nameInput.value.trim() && enrollmentInput.value.trim() && branchInput.value && semesterInput.value) {
+                userDetails.name = nameInput.value.trim();
+                userDetails.enrollment = enrollmentInput.value.trim();
+                userDetails.branch = branchInput.value;
+                userDetails.semester = semesterInput.value;
+                registrationContainer.classList.add('hidden');
+                enterQuizContainer.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+            } else {
+                errorMessage.textContent = 'Please fill out all fields.';
+                errorMessage.classList.remove('hidden');
+            }
+        };
+
+        enterQuizBtn.onclick = () => {
+            enterQuizContainer.classList.add('hidden');
+            quizContainer.classList.remove('hidden');
+            startTimer();
+            loadQuestion();
+        };
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 60;
+            timerDisplay.textContent = formatTime(timeLeft);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = formatTime(timeLeft);
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showTimeUp();
+                }
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function showTimeUp() {
+            quizContainer.classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+            resultTitle.textContent = "Time's Up!";
+            resultMessage.textContent = `You ran out of time. You scored ${score}/5. Try again!`;
+            retryBtn.textContent = 'Try Again';
+            downloadBtn.classList.add('hidden');
+            disableQuiz();
+        }
+
+        function disableQuiz() {
+            optionsContainer.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            nextBtn.classList.add('hidden');
+            submitBtn.classList.add('hidden');
+        }
+
+        function loadQuestion() {
+            const question = questions[currentQuestionIndex];
+            questionContainer.innerHTML = `<p class="text-lg">${question.question}</p>`;
+            optionsContainer.innerHTML = '';
+            question.options.forEach(option => {
+                const button = document.createElement('button');
+                button.className = 'w-full bg-gray-200 py-2 mb-2 rounded hover:bg-gray-300';
+                button.textContent = option;
+                button.onclick = () => selectOption(option);
+                optionsContainer.appendChild(button);
+            });
+            feedback.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            submitBtn.classList.add('hidden');
+        }
+
+        function selectOption(option) {
+            const question = questions[currentQuestionIndex];
+            userAnswers[currentQuestionIndex] = option;
+            if (option === question.correct) {
+                score++;
+                feedback.textContent = 'Correct!';
+                feedback.className = 'mt-4 text-green-500';
+            } else {
+                feedback.textContent = `Incorrect. The correct answer is ${question.correct}.`;
+                feedback.className = 'mt-4 text-red-500';
+            }
+            feedback.classList.remove('hidden');
+            optionsContainer.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            if (currentQuestionIndex < questions.length - 1) {
+                nextBtn.classList.remove('hidden');
+            } else {
+                submitBtn.classList.remove('hidden');
+            }
+        }
+
+        function generateCertificate() {
+            try {
+                console.log('Generating certificate for:', userDetails, 'Score:', score);
+                const doc = new jsPDF();
+                doc.setFontSize(20);
+                doc.text('Certificate of Achievement', 105, 30, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text(`Name: ${userDetails.name}`, 20, 50);
+                doc.text(`Enrollment Number: ${userDetails.enrollment}`, 20, 60);
+                doc.text(`Branch: ${userDetails.branch}`, 20, 70);
+                doc.text(`Semester: ${userDetails.semester}`, 20, 80);
+                doc.text('This certifies that the above student has', 105, 100, { align: 'center' });
+                doc.text('successfully passed the General Knowledge Quiz.', 105, 110, { align: 'center' });
+                doc.text(`Score: ${score}/5`, 105, 130, { align: 'center' });
+                doc.setTextColor(0, 128, 0);
+                doc.text('Status: PASS', 105, 150, { align: 'center' });
+                doc.save('certificate.pdf');
+                console.log('Certificate downloaded successfully');
+            } catch (error) {
+                console.error('Error generating certificate:', error);
+                alert('Failed to generate certificate. Please try again.');
+            }
+        }
+
+        function showResults() {
+            clearInterval(timerInterval);
+            quizContainer.classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+            if (score >= 4) {
+                resultTitle.textContent = 'Congratulations!';
+                resultMessage.textContent = `You scored ${score}/5. You passed the quiz!`;
+                downloadBtn.classList.remove('hidden');
+                retryBtn.textContent = 'Try Again';
+            } else {
+                resultTitle.textContent = 'Try Again';
+                resultMessage.textContent = `You scored ${score}/5. You need at least 4 correct to pass.`;
+                retryBtn.textContent = 'Try Again';
+            }
+        }
+
+        nextBtn.onclick = () => {
+            currentQuestionIndex++;
+            loadQuestion();
+        };
+
+        submitBtn.onclick = showResults;
+
+        retryBtn.onclick = () => {
+            currentQuestionIndex = 0;
+            score = 0;
+            userAnswers = [];
+            resultContainer.classList.add('hidden');
+            registrationContainer.classList.remove('hidden');
+            quizContainer.classList.add('hidden');
+            enterQuizContainer.classList.add('hidden');
+            downloadBtn.classList.add('hidden');
+            nameInput.value = '';
+            enrollmentInput.value = '';
+            branchInput.value = '';
+            semesterInput.value = '';
+            errorMessage.classList.add('hidden');
+            userDetails = { name: '', enrollment: '', branch: '', semester: '' };
+        };
+
+        downloadBtn.onclick = () => {
+            console.log('Download button clicked');
+            generateCertificate();
+        };
+    </script>
+</body>
+</html>
